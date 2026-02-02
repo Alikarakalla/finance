@@ -1,57 +1,89 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
-
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
+import { MaterialIcons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
+// @ts-ignore
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const theme = colorScheme ?? 'light';
+
+  if (Platform.OS === 'ios') {
+    return (
+      <NativeTabs backBehavior="history">
+        <NativeTabs.Trigger name="index">
+          <Label>Home</Label>
+          <Icon sf="house.fill" />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="transactions">
+          <Label>Activity</Label>
+          <Icon sf="list.bullet" />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="scan">
+          <Label>Scan</Label>
+          <Icon sf="camera.fill" />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="budget">
+          <Label>Budget</Label>
+          <Icon sf="chart.pie.fill" />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="settings" role="search">
+          <Label>Settings</Label>
+          <Icon sf="gearshape.fill" />
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    );
+  }
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false,
+        tabBarActiveTintColor: Colors[theme].tint,
+        tabBarStyle: {
+          backgroundColor: Colors[theme].background,
+          borderTopColor: theme === 'dark' ? '#333' : '#eee',
+        }
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          title: 'Home',
+          tabBarIcon: ({ color }) => <MaterialIcons name="home" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="transactions"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Activity',
+          tabBarIcon: ({ color }) => <MaterialIcons name="list" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="scan"
+        options={{
+          title: 'Scan',
+          tabBarIcon: ({ color }) => <MaterialIcons name="camera-alt" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="budget"
+        options={{
+          title: 'Budget',
+          tabBarIcon: ({ color }) => <MaterialIcons name="pie-chart" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <MaterialIcons name="settings" size={24} color={color} />,
         }}
       />
     </Tabs>

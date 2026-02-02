@@ -1,28 +1,51 @@
 {
   "expo": {
-    "name": "Finance-mobile",
-    "slug": "Finance-mobile",
+    "name": "Finance Manager",
+    "slug": "finance-manager",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "financemobile",
+    "scheme": "financemanager",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#007AFF"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.financemanager.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "We need camera access to scan receipts and automatically extract expense information.",
+        "NSPhotoLibraryUsageDescription": "We need photo library access to select receipt images for scanning.",
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      },
+      "usesAppleSignIn": false
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#007AFF"
       },
+      "package": "com.financemanager.app",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
+    },
+    "androidStatusBar": {
+      "hidden": false,
+      "translucent": true,
+      "barStyle": "dark-content",
+      "backgroundColor": "#00000000"
     },
     "web": {
       "bundler": "metro",
@@ -30,10 +53,23 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Finance Manager to access your camera to scan receipts."
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
     }
   }
 }
