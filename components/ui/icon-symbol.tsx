@@ -51,9 +51,11 @@ export function IconSymbol({
             'eye': 'eye.fill',
             'notifications': 'bell.fill',
             'minus': 'minus',
+            'trending-up': 'chart.line.uptrend.xyaxis',
+            'trending-down': 'chart.line.downtrend.xyaxis',
         };
         const symbol = iosIconMap[name] || 'questionmark';
-        return <SymbolView name={symbol} size={size} tintColor={color as any} style={style} weight={weight} />;
+        return <SymbolView name={symbol} size={size} tintColor={color as any} style={style as any} weight={weight} />;
     }
 
     // Android/Web: Material Icons
@@ -82,6 +84,8 @@ export function IconSymbol({
         'eye': 'visibility',
         'notifications': 'notifications',
         'minus': 'remove',
+        'trending-up': 'trending-up',
+        'trending-down': 'trending-down',
     };
 
     const materialIconName = materialIconMap[name] || 'help-outline';
@@ -114,4 +118,6 @@ export type IconSymbolName =
     | 'add-circle'
     | 'eye'
     | 'notifications'
-    | 'minus';
+    | 'minus'
+    | 'trending-up'
+    | 'trending-down';

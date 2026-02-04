@@ -103,6 +103,10 @@ export const addTransaction = async (t: Transaction) => {
     return await apiCall('/transactions', 'POST', t);
 };
 
+export const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    return await apiCall(`/transactions/${id}`, 'PUT', updates);
+};
+
 export const deleteTransaction = async (id: string) => {
     return await apiCall(`/transactions/${id}`, 'DELETE');
 };

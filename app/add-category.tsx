@@ -4,7 +4,6 @@ import { useFinanceStore } from '@/store/financeStore';
 import { TransactionType } from '@/types';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { format } from 'date-fns';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -25,8 +24,8 @@ import {
     View,
     useColorScheme
 } from 'react-native';
+import EmojiSelector from 'react-native-emoji-selector';
 import ColorPicker, { HueSlider, OpacitySlider, Panel1, Preview, Swatches } from 'reanimated-color-picker';
-import EmojiPicker, { type EmojiType } from 'rn-emoji-keyboard';
 
 const PRESET_COLORS = [
     '#4CAF50', '#8BC34A', '#F44336', '#FF9800', '#E91E63',
@@ -86,9 +85,12 @@ export default function AddCategoryModal() {
         setSelectedColor(hex);
     };
 
-    const handleEmojiSelect = (emojiObject: EmojiType) => {
-        setSelectedIcon(emojiObject.emoji);
+    const handleEmojiSelect = (emoji: string) => {
+        setSelectedIcon(emoji);
+        setShowEmojiPicker(false);
     };
+
+
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -125,19 +127,21 @@ export default function AddCategoryModal() {
         }
     };
 
+    const backgroundColor = theme === 'dark' ? '#000000' : '#ffffff';
+    const textColor = theme === 'dark' ? '#ffffff' : '#000000';
+    const placeholderColor = theme === 'dark' ? Colors.dark.gray : Colors.light.gray;
+    const inputBorderColor = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+    const emojiSelectorBg = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
     return (
-        <LinearGradient
-            colors={[baseColor + '1A', '#000000']}
-            locations={[0, 0.35]}
-            style={styles.container}
-        >
-            <StatusBar style='light' />
+        <View style={[styles.container, { backgroundColor }]}>
+            <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
             <Stack.Screen
                 options={{
                     headerShown: true,
                     headerTransparent: true,
                     headerTitle: isEditing ? 'Edit Category' : 'New Category',
-                    headerTintColor: '#fff',
+                    headerTintColor: textColor,
                     headerLeft: () => (
                         <TouchableOpacity
                             onPress={() => router.back()}
@@ -145,9 +149,22 @@ export default function AddCategoryModal() {
                         >
                             <IconSymbol
                                 name="chevron-left"
-                                color="#fff"
+                                color={textColor}
                                 size={24}
                             />
+                        </TouchableOpacity>
+                    ),
+                    headerRight: () => (
+                        <TouchableOpacity
+                            onPress={handleSave}
+                            disabled={isSaving}
+                            style={{ padding: 8 }}
+                        >
+                            {isSaving ? (
+                                <ActivityIndicator color={Colors.light.tint} />
+                            ) : (
+                                <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>Save</Text>
+                            )}
                         </TouchableOpacity>
                     ),
                 }}
@@ -165,22 +182,20 @@ export default function AddCategoryModal() {
                                 const index = event.nativeEvent.selectedSegmentIndex;
                                 setType(index === 1 ? 'inflow' : 'outflow');
                             }}
-                            // @ts-ignore: 'glass' is a valid value for iOS 13+ but missing in types
-                            appearance="glass"
-                            fontStyle={{ color: '#8E8E93', fontWeight: '600', fontSize: 13 }}
-                            activeFontStyle={{ color: '#fff' }}
-                            tintColor="rgba(255, 255, 255, 0.15)"
+                            appearance={theme === 'dark' ? 'dark' : 'light'}
+                            fontStyle={{ color: textColor, fontWeight: '600', fontSize: 13 }}
+                            activeFontStyle={{ color: theme === 'dark' ? '#fff' : '#000' }}
                             style={styles.segmentedControl}
                         />
                     </View>
 
                     <Text style={[styles.label, { color: Colors[theme].gray }]}>Category Name</Text>
                     <TextInput
-                        style={[styles.input, { color: Colors[theme].text }]}
+                        style={[styles.input, { color: textColor, borderBottomColor: inputBorderColor }]}
                         value={name}
                         onChangeText={setName}
                         placeholder="e.g. Subscriptions"
-                        placeholderTextColor={Colors[theme].gray}
+                        placeholderTextColor={placeholderColor}
                     />
 
                     <View style={styles.sectionHeader}>
@@ -205,25 +220,17 @@ export default function AddCategoryModal() {
 
                     <Text style={[styles.label, { color: Colors[theme].gray, marginTop: 24 }]}>Icon</Text>
                     <TouchableOpacity
-                        style={styles.emojiSelector}
+                        style={[styles.emojiSelector, { backgroundColor: emojiSelectorBg, borderColor: inputBorderColor }]}
                         onPress={() => setShowEmojiPicker(true)}
                     >
                         <View style={[styles.previewIconBoxMini, { backgroundColor: selectedColor + '20' }]}>
                             <Text style={{ fontSize: 24 }}>{selectedIcon}</Text>
                         </View>
-                        <Text style={[styles.emojiSelectorText, { color: Colors[theme].text }]}>Choose Emoji</Text>
-                        <XCircle size={20} color={Colors[theme].gray} style={{ transform: [{ rotate: '45deg' }] }} />
+                        <Text style={[styles.emojiSelectorText, { color: textColor }]}>Choose Emoji</Text>
+                        <XCircle size={20} color={placeholderColor} style={{ transform: [{ rotate: '45deg' }] }} />
                     </TouchableOpacity>
 
                     <View style={{ height: 40 }} />
-
-                    <TouchableOpacity
-                        style={[styles.saveBtn, { backgroundColor: Colors.dashboard.cyan }]}
-                        onPress={handleSave}
-                        disabled={isSaving}
-                    >
-                        {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{isEditing ? 'Update Category' : 'Create Category'}</Text>}
-                    </TouchableOpacity>
                 </ScrollView>
             </KeyboardAvoidingView>
 
@@ -232,7 +239,7 @@ export default function AddCategoryModal() {
                 <View style={styles.modalOverlay}>
                     <View style={[styles.modalContent, { backgroundColor: theme === 'dark' ? '#1c1c1e' : '#fff' }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: Colors[theme].text }]}>Choose Color</Text>
+                            <Text style={[styles.modalTitle, { color: textColor }]}>Choose Color</Text>
                             <TouchableOpacity onPress={() => setShowColorPicker(false)}>
                                 <Text style={{ color: Colors.dashboard.cyan, fontWeight: '700', fontSize: 16 }}>Done</Text>
                             </TouchableOpacity>
@@ -252,25 +259,32 @@ export default function AddCategoryModal() {
                 </View>
             </Modal>
 
-            <EmojiPicker
-                onEmojiSelected={handleEmojiSelect}
-                open={showEmojiPicker}
-                onClose={() => setShowEmojiPicker(false)}
-                theme={{
-                    backdrop: '#16161888',
-                    knob: '#766dfc',
-                    container: '#282829',
-                    header: '#fff',
-                    skinTonesContainer: '#252427',
-                    category: {
-                        icon: '#766dfc',
-                        iconActive: '#fff',
-                        container: '#252427',
-                        containerActive: '#766dfc',
-                    },
-                }}
-            />
-        </LinearGradient>
+            {/* Custom Emoji Picker Modal */}
+            <Modal visible={showEmojiPicker} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: theme === 'dark' ? '#1c1c1e' : '#fff', height: 500 }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: textColor }]}>Choose Emoji</Text>
+                            <TouchableOpacity onPress={() => setShowEmojiPicker(false)}>
+                                <Text style={{ color: Colors.dashboard.cyan, fontWeight: '700', fontSize: 16 }}>Close</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            {/* @ts-ignore */}
+                            <EmojiSelector
+                                onEmojiSelected={handleEmojiSelect}
+                                showSearchBar={true}
+                                showTabs={true}
+                                showHistory={false}
+                                showSectionTitles={false}
+                                columns={8}
+                                theme={theme === 'dark' ? '#766dfc' : '#007AFF'}
+                            />
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        </View>
     );
 }
 
@@ -291,18 +305,20 @@ const styles = StyleSheet.create({
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 },
     colorRow: { gap: 14, paddingVertical: 10 },
     backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 20,
+        height: 20,
+        borderRadius: 50,
         backgroundColor: 'transparent',
         justifyContent: 'center',
         alignItems: 'center',
         ...Platform.select({
             ios: {
                 shadowColor: 'transparent',
+                marginHorizontal: 8,
             },
             android: {
                 backgroundColor: 'rgba(0,0,0,0.05)',
+                marginHorizontal: 8,
             }
         })
     },
@@ -333,8 +349,7 @@ const styles = StyleSheet.create({
     },
     // iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
     // iconItem: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1.5, borderColor: 'transparent' },
-    saveBtn: { padding: 20, borderRadius: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10, marginBottom: 40 },
-    saveBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
     modalContent: { padding: 24, borderTopLeftRadius: 32, borderTopRightRadius: 32, minHeight: 500 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },

@@ -98,6 +98,50 @@ function RootLayoutNav() {
               sheetInitialDetentIndex: 0,
             }}
           />
+          <Stack.Screen
+            name="saving-rate-info"
+            options={{
+              presentation: 'formSheet',
+              headerShown: false,
+              contentStyle: { backgroundColor: '#0A3D3C' },
+              sheetAllowedDetents: [0.7],
+              sheetGrabberVisible: true,
+              sheetCornerRadius: 32,
+            }}
+          />
+          <Stack.Screen
+            name="trend-info"
+            options={{
+              presentation: 'formSheet',
+              headerShown: false,
+              contentStyle: { backgroundColor: '#131C33' },
+              sheetAllowedDetents: [0.7],
+              sheetGrabberVisible: true,
+              sheetCornerRadius: 32,
+            }}
+          />
+          <Stack.Screen
+            name="spending-info"
+            options={{
+              presentation: 'formSheet',
+              headerShown: false,
+              contentStyle: { backgroundColor: '#2B1A10' },
+              sheetAllowedDetents: [0.7],
+              sheetGrabberVisible: true,
+              sheetCornerRadius: 32,
+            }}
+          />
+          <Stack.Screen
+            name="top-spending-info"
+            options={{
+              presentation: 'formSheet',
+              headerShown: false,
+              contentStyle: { backgroundColor: '#2A1B3D' },
+              sheetAllowedDetents: [0.7],
+              sheetGrabberVisible: true,
+              sheetCornerRadius: 32,
+            }}
+          />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>

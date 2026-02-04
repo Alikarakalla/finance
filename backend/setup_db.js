@@ -1,19 +1,24 @@
 const mysql = require('mysql2');
+require('dotenv').config();
 
-// Try connecting to MySQL server directly (no database selected)
-const connection = mysql.createConnection({
-    host: '127.0.0.1',
-    user: 'root',
-    password: '', // Trying empty password first
-    port: 3306
-});
+const dbConfig = {
+    host: process.env.DB_HOST || '127.0.0.1',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    port: process.env.PORT_DB ? parseInt(process.env.PORT_DB) : 3307
+};
+
+console.log('Connecting to database with config:', { ...dbConfig, password: '***' });
+
+const connection = mysql.createConnection(dbConfig);
 
 connection.connect((err) => {
     if (err) {
         console.error('FAILED to connect to MySQL:', err.message);
-        console.log('--- troubleshoot ---');
-        console.log('1. Check if DBngin is running.');
-        console.log('2. If you have a password for root, please tell me.');
+        console.log('--- TROUBLESHOOTING ---');
+        console.log('1. Ensure XAMPP MySQL is running (Port 3307).');
+        console.log('2. If it is running, try RESTARTING it in XAMPP Control Panel.');
+        console.log('3. Check if you have a password for root.');
         process.exit(1);
     }
 

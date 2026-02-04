@@ -83,9 +83,22 @@ export default function TransactionDetailScreen() {
                         </Pressable>
                     ),
                     headerRight: () => (
-                        <TouchableOpacity onPress={handleDelete} style={styles.headerBtn}>
-                            <Trash2 size={24} color={Colors.expense} />
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                            <TouchableOpacity
+                                onPress={() => router.push({
+                                    pathname: '/add-transaction',
+                                    params: {
+                                        editingTransactionId: transaction.id
+                                    }
+                                })}
+                                style={styles.headerBtn}
+                            >
+                                <IconSymbol name="edit" size={24} color={Colors[theme].text} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleDelete} style={styles.headerBtn}>
+                                <Trash2 size={24} color={Colors.expense} />
+                            </TouchableOpacity>
+                        </View>
                     )
                 }}
             />

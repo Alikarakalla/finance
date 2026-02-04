@@ -3,10 +3,12 @@ import { Colors } from '@/constants/Colors';
 import { useFinanceStore } from '@/store/financeStore';
 import { Transaction } from '@/types';
 import { format } from 'date-fns';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { HelpCircle, Repeat } from 'lucide-react-native';
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -53,9 +55,9 @@ const DashedCircularProgress = ({
     ];
 
     const dotCount = 40;
-    const dotGap = innerCircumference / dotCount;
+    const dotPitch = innerCircumference / dotCount;
     // dots created via strokeLinecap on zero-width dash
-    const dotDashArray = [0.1, dotGap];
+    const dotDashArray = [0.1, dotPitch - 0.1];
 
     const trackColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
     const textColor = Colors[theme].text;
@@ -84,6 +86,7 @@ const DashedCircularProgress = ({
                     fill="transparent"
                     strokeDasharray={progressStrokeDasharray}
                     strokeLinecap="round"
+                    strokeDashoffset={-circumference / dotCount}
                 />
 
                 {/* Inner Decorative Dot Track (Gray Dots) */}
@@ -96,6 +99,7 @@ const DashedCircularProgress = ({
                     fill="transparent"
                     strokeDasharray={dotDashArray}
                     strokeLinecap="round"
+                    strokeDashoffset={-dotPitch}
                 />
 
                 {/* Inner Decorative Dot Progress (Colored Dots) */}
@@ -109,6 +113,8 @@ const DashedCircularProgress = ({
                             strokeWidth={8}
                             fill="transparent"
                             strokeDasharray={innerProgressStrokeDasharray}
+                            strokeLinecap="round"
+                            strokeDashoffset={-dotPitch}
                         />
                     </Mask>
                 </Defs>
@@ -121,13 +127,21 @@ const DashedCircularProgress = ({
                     fill="transparent"
                     strokeDasharray={dotDashArray}
                     strokeLinecap="round"
+                    strokeDashoffset={-dotPitch}
                     mask="url(#innerDotMask)"
                 />
             </Svg>
 
-            <View style={styles.circleLabelContainer}>
-                <Text style={[styles.circleValue, { color: textColor, fontSize: 38, fontWeight: '800' }]}>{labelValue}</Text>
-                <Text style={[styles.circleSubtitle, { color: subTextColor, fontSize: 13, marginTop: 4, fontWeight: '500' }]}>{labelSubtitle}</Text>
+            <View style={[styles.circleLabelContainer, { width: innerRadius * 1.5 }]}>
+                <Text
+                    style={[styles.circleValue, { color: textColor, fontSize: 32, fontWeight: '800', textAlign: 'center' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.4}
+                >
+                    {labelValue}
+                </Text>
+                <Text style={[styles.circleSubtitle, { color: subTextColor, fontSize: 13, marginTop: 4, fontWeight: '500', textAlign: 'center' }]} numberOfLines={1} adjustsFontSizeToFit>{labelSubtitle}</Text>
             </View>
         </View>
     );
@@ -140,20 +154,60 @@ const StatItem = ({ label, value, color, theme = 'dark' }: { label: string, valu
     </View>
 );
 
-const MiniDonutChart = ({ data, size = 70, strokeWidth = 10 }: { data: { amount: number, color: string }[], size?: number, strokeWidth?: number }) => {
+const MiniDonutChart = ({ data, size = 70, strokeWidth = 10 }: { data: { amount: number, color: string, name?: string }[], size?: number, strokeWidth?: number }) => {
+    const [selected, setSelected] = useState<number | null>(null);
+    const timeoutRef = useRef<any>(null);
+
     const radius = (size - strokeWidth) / 2;
     const circumference = radius * 2 * Math.PI;
     const total = data.reduce((acc, d) => acc * 1 + d.amount * 1, 0);
 
     let currentOffset = 0;
 
+    const handlePress = (index: number) => {
+        if (data[index].name === undefined) return; // Ignore fallback data
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setSelected(index);
+
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => setSelected(null), 2000);
+    };
+
     return (
         <View style={{ width: size, height: size, alignSelf: 'center' }}>
+            {/* Tooltip */}
+            {selected !== null && data[selected].name && (
+                <View style={{
+                    position: 'absolute',
+                    top: -55,
+                    left: -35,
+                    width: 140,
+                    zIndex: 100,
+                    alignItems: 'center'
+                }}>
+                    <BlurView intensity={30} tint="dark" style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 10,
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.2)',
+                    }}>
+                        <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center' }}>
+                            {data[selected].name}
+                        </Text>
+                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800', textAlign: 'center' }}>
+                            ${data[selected].amount.toLocaleString()}
+                        </Text>
+                    </BlurView>
+                </View>
+            )}
+
             <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
                 {data.map((d, i) => {
                     const percentage = (d.amount / total) * 100;
                     if (percentage === 0) return null;
-                    // Significantly increase gap to compensate for rounded linecaps
+
                     const strokeDasharray = [
                         (circumference * Math.max(0, percentage - 8)) / 100,
                         circumference
@@ -168,11 +222,13 @@ const MiniDonutChart = ({ data, size = 70, strokeWidth = 10 }: { data: { amount:
                             cy={size / 2}
                             r={radius}
                             stroke={d.color}
-                            strokeWidth={strokeWidth}
+                            strokeWidth={selected === i ? strokeWidth + 4 : strokeWidth}
                             fill="transparent"
                             strokeDasharray={strokeDasharray}
                             strokeDashoffset={-offset}
                             strokeLinecap="round"
+                            onPress={() => handlePress(i)}
+                            opacity={selected === null || selected === i ? 1 : 0.4}
                         />
                     );
                 })}
@@ -182,26 +238,89 @@ const MiniDonutChart = ({ data, size = 70, strokeWidth = 10 }: { data: { amount:
 };
 
 const SimpleBarChart = ({ data, color }: { data: number[], color: string }) => {
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+    const timeoutRef = useRef<any>(null);
+
     const width = 130;
     const height = 40;
     const barWidth = 8;
     const gap = 4;
     const max = Math.max(...data, 1);
 
+    const handlePress = (index: number) => {
+        // Haptic feedback
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        setSelectedIndex(index);
+
+        // Auto-hide tooltip after 2 seconds
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => {
+            setSelectedIndex(null);
+        }, 2000);
+    };
+
     return (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap, height, marginTop: 15 }}>
-            {data.map((val, i) => (
-                <View
-                    key={i}
-                    style={{
-                        width: barWidth,
-                        height: (val / max) * height,
-                        backgroundColor: color,
-                        borderRadius: 2,
-                        opacity: i === data.length - 1 ? 1 : 0.6
-                    }}
-                />
-            ))}
+        <View style={{ marginTop: 15 }}>
+            {/* Tooltip */}
+            {selectedIndex !== null && (
+                <View style={{
+                    position: 'absolute',
+                    top: -45,
+                    left: (selectedIndex * (barWidth + gap)) - 15,
+                    zIndex: 100,
+                    alignItems: 'center'
+                }}>
+                    <BlurView intensity={25} tint="dark" style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: 12,
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.2)',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 5,
+                    }}>
+                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                            ${data[selectedIndex].toLocaleString()}
+                        </Text>
+                    </BlurView>
+                    {/* Tooltip Triangle */}
+                    <View style={{
+                        width: 0,
+                        height: 0,
+                        backgroundColor: 'transparent',
+                        borderStyle: 'solid',
+                        borderLeftWidth: 5,
+                        borderRightWidth: 5,
+                        borderTopWidth: 5,
+                        borderLeftColor: 'transparent',
+                        borderRightColor: 'transparent',
+                        borderTopColor: 'rgba(255,255,255,0.2)',
+                    }} />
+                </View>
+            )}
+
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap, height }}>
+                {data.map((val, i) => (
+                    <TouchableOpacity
+                        key={i}
+                        activeOpacity={0.7}
+                        onPress={() => handlePress(i)}
+                        style={{
+                            width: barWidth,
+                            height: (val / max) * height,
+                            backgroundColor: selectedIndex === i ? '#fff' : color,
+                            borderRadius: 2,
+                            opacity: (selectedIndex === null)
+                                ? (i === data.length - 1 ? 1 : 0.6)
+                                : (selectedIndex === i ? 1 : 0.3)
+                        }}
+                    />
+                ))}
+            </View>
         </View>
     );
 };
@@ -327,7 +446,8 @@ const InsightCard = ({
     color,
     content,
     theme = 'dark',
-    legend
+    legend,
+    onPress
 }: {
     title: string,
     value: string,
@@ -336,7 +456,8 @@ const InsightCard = ({
     color: string,
     content?: React.ReactNode,
     theme?: 'light' | 'dark',
-    legend?: { name: string, color: string }
+    legend?: { name: string, color: string },
+    onPress?: () => void
 }) => {
     const finalBg = theme === 'dark' ? color : 'rgba(0,0,0,0.05)';
     const titleColor = '#8E8E93';
@@ -344,21 +465,35 @@ const InsightCard = ({
 
     return (
         <View style={[styles.insightCard, { backgroundColor: finalBg }]}>
-            <View style={styles.insightHeader}>
-                <IconSymbol name={icon as any || "bar-chart"} size={14} color={titleColor} />
-                <Text style={[styles.insightTitle, { color: titleColor }]}>{title}</Text>
-            </View>
-            <Text style={[styles.insightValue, { color: valueColor, marginTop: 4 }]}>{value}</Text>
+            <TouchableOpacity
+                activeOpacity={onPress ? 0.7 : 1}
+                onPress={onPress}
+                disabled={!onPress}
+            >
+                <View style={styles.insightHeader}>
+                    <IconSymbol name={icon as any || "bar-chart"} size={14} color={titleColor} />
+                    <Text style={[styles.insightTitle, { color: titleColor }]}>{title}</Text>
+                </View>
+                <Text style={[styles.insightValue, { color: valueColor, marginTop: 4 }]}>{value}</Text>
+            </TouchableOpacity>
+
             <View style={{ flex: 1, justifyContent: 'center', marginVertical: 10 }}>
                 {content}
             </View>
-            {legend && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: legend.color }} />
-                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500' }}>{legend.name}</Text>
-                </View>
-            )}
-            {!legend && subtitle && <Text style={[styles.insightSubtitle, { color: '#8E8E93' }]}>{subtitle}</Text>}
+
+            <TouchableOpacity
+                activeOpacity={onPress ? 0.7 : 1}
+                onPress={onPress}
+                disabled={!onPress}
+            >
+                {legend && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: legend.color }} />
+                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500' }}>{legend.name}</Text>
+                    </View>
+                )}
+                {!legend && subtitle && <Text style={[styles.insightSubtitle, { color: '#8E8E93' }]}>{subtitle}</Text>}
+            </TouchableOpacity>
         </View>
     );
 };
@@ -432,6 +567,7 @@ export default function HomeScreen() {
     const monthlyBudget = monthlyInflow;
     const leftToSpend = monthlyBudget - monthlyOutflow;
     const availablePercentage = monthlyBudget > 0 ? Math.max(0, Math.min(100, (leftToSpend / monthlyBudget) * 100)) : 0;
+    const spentPercentage = monthlyBudget > 0 ? Math.max(0, Math.min(100, (monthlyOutflow / monthlyBudget) * 100)) : 0;
 
     const totalBalance = getBalance();
     const recent = transactions.slice(0, 3);
@@ -442,31 +578,82 @@ export default function HomeScreen() {
             ? Colors.dashboard.orange
             : '#0D93FC';
 
-    const spentPercentage = monthlyBudget > 0 ? Math.max(0, Math.min(100, (monthlyOutflow / monthlyBudget) * 100)) : 0;
-
+    // --- Last Month Comparison ---
     const lastMonthDate = new Date(selectedDate);
     lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
     const lastMonthStr = format(lastMonthDate, 'yyyy-MM');
     const lastMonthTransactions = transactions.filter(t => format(new Date(t.date), 'yyyy-MM') === lastMonthStr);
+
     const lastMonthOutflow = lastMonthTransactions
         .filter(t => t.type === 'outflow')
         .reduce((acc, t) => acc + t.amount, 0);
+    const lastMonthInflow = lastMonthTransactions
+        .filter(t => t.type === 'inflow')
+        .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
-    const trendDiff = monthlyOutflow - lastMonthOutflow;
-    const trendPercentage = lastMonthOutflow > 0
-        ? Math.round((trendDiff / lastMonthOutflow) * 100)
-        : 0;
+    // We compare what was left at the end of last month vs what is left now
+    const lastMonthAvailable = lastMonthInflow - lastMonthOutflow;
 
-    // Sparkline data (daily or weekly)
-    const dailySpending: Record<string, number> = {};
-    monthlyTransactions.filter(t => t.type === 'outflow').forEach(t => {
-        const day = format(new Date(t.date), 'd');
-        dailySpending[day] = (dailySpending[day] || 0) + Number(t.amount);
+    // Logic: If current available > last month final available, it's a positive trend
+    const trendDiff = leftToSpend - lastMonthAvailable;
+    let trendPercentage = 0;
+    if (lastMonthAvailable > 0) {
+        trendPercentage = Math.round((trendDiff / lastMonthAvailable) * 100);
+    } else if (leftToSpend > 0) {
+        trendPercentage = 100;
+    }
+
+    console.log(`[Trend Debug] Current Month: ${currentMonth}, Inflow: ${monthlyInflow}, Outflow: ${monthlyOutflow}, Left: ${leftToSpend}`);
+    console.log(`[Trend Debug] Last Month: ${lastMonthStr}, Inflow: ${lastMonthInflow}, Outflow: ${lastMonthOutflow}, Left: ${lastMonthAvailable}`);
+    console.log(`[Trend Debug] Trend Diff: ${trendDiff}, Percentage: ${trendPercentage}%`);
+
+    // --- Sparklines and Charts ---
+
+    // 1. Trend Comparison Data
+    // We compare this month's running net balance vs last month's running net balance for each day
+    const trendSparklineData: number[] = [];
+    let currentRunningBalance = 0;
+    let lastMonthRunningBalance = 0;
+
+    const currentDailyNet: Record<number, number> = {};
+    const lastMonthDailyNet: Record<number, number> = {};
+
+    const todayDay = new Date().getDate();
+
+    monthlyTransactions.forEach(t => {
+        const d = new Date(t.date).getDate();
+        const amt = Number(t.amount) || 0;
+        currentDailyNet[d] = (currentDailyNet[d] || 0) + (t.type === 'inflow' ? amt : -amt);
     });
-    const sparklineData = Object.values(dailySpending).length > 1
-        ? Object.values(dailySpending)
-        : [lastMonthOutflow / 30, monthlyOutflow];
 
+    lastMonthTransactions.forEach(t => {
+        const d = new Date(t.date).getDate();
+        const amt = Number(t.amount) || 0;
+        lastMonthDailyNet[d] = (lastMonthDailyNet[d] || 0) + (t.type === 'inflow' ? amt : -amt);
+    });
+
+    for (let i = 1; i <= todayDay; i++) {
+        currentRunningBalance += (currentDailyNet[i] || 0);
+        lastMonthRunningBalance += (lastMonthDailyNet[i] || 0);
+
+        // This value represents: "How much better/worse am I today vs the same day last month?"
+        trendSparklineData.push(currentRunningBalance - lastMonthRunningBalance);
+    }
+
+    // Fallback if no days yet
+    if (trendSparklineData.length === 0) trendSparklineData.push(0);
+    if (trendSparklineData.length === 1) trendSparklineData.unshift(0);
+
+    // 2. Spending Bars for Spending Card
+    // Shows individual transaction amounts for the most recent 10 expenses
+    let spendingChartData = monthlyTransactions
+        .filter(t => t.type === 'outflow')
+        .slice(-10) // Get last 10
+        .map(t => Number(t.amount));
+
+    if (spendingChartData.length === 0) spendingChartData = [0];
+
+    // 3. Category Pie/Donut
     const categoryTotals = monthlyTransactions
         .filter(t => t.type === 'outflow')
         .reduce((acc, t) => {
@@ -486,11 +673,13 @@ export default function HomeScreen() {
     const topCategory = sortedCategoriesData[0];
     const donutData = sortedCategoriesData.slice(0, 5).map(c => ({
         amount: c.amount,
-        color: c.category.color
+        color: c.category.color,
+        name: c.category.name
     }));
 
+    // 4. Savings Rate
     const savingsRate = monthlyInflow > 0 ? Math.max(0, Math.round(((monthlyInflow - monthlyOutflow) / monthlyInflow) * 100)) : 0;
-    const savingStatus = savingsRate >= 20 ? { name: 'Excellent', color: '#0D93FC' } : savingsRate >= 10 ? { name: 'Good', color: Colors.dashboard.orange } : { name: 'Low', color: Colors.expense };
+    const savingStatus = savingsRate >= 68 ? { name: 'Excellent', color: '#0D93FC' } : savingsRate >= 32 ? { name: 'Good', color: Colors.dashboard.orange } : { name: 'Low', color: Colors.expense };
 
     return (
         <LinearGradient
@@ -503,9 +692,9 @@ export default function HomeScreen() {
                 <View style={styles.heroSection}>
                     <DashedCircularProgress
                         size={220}
-                        percentage={spentPercentage}
-                        labelValue={`$${monthlyOutflow.toLocaleString()}`}
-                        labelSubtitle={`${Math.round(spentPercentage)}% of budget spent`}
+                        percentage={availablePercentage}
+                        labelValue={`$${leftToSpend.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                        labelSubtitle={`${Math.round(availablePercentage)}% Available`}
                         color={baseColor}
                         theme={theme}
                     />
@@ -523,16 +712,17 @@ export default function HomeScreen() {
                         <InsightCard
                             title="Trend"
                             color="#131C33"
-                            value={(trendPercentage >= 0 ? "+" : "") + trendPercentage + "%"}
-                            icon="bar-chart"
-                            subtitle={trendPercentage >= 0 ? "Increasing" : "Decreasing"}
+                            value={(trendPercentage > 0 ? "+" : "") + trendPercentage + "%"}
+                            icon={trendPercentage >= 0 ? "trending-up" : "trending-down"}
+                            subtitle="vs Last Month"
                             theme={theme}
+                            onPress={() => router.push('/trend-info')}
                             content={
-                                <TrendSparkline data={sparklineData} color={trendPercentage <= 0 ? Colors.dashboard.cyan : Colors.expense} width={130} />
+                                <TrendSparkline data={trendSparklineData} color={trendPercentage >= 0 ? Colors.dashboard.cyan : Colors.expense} width={130} />
                             }
                             legend={trendPercentage >= 0
-                                ? { name: "Increasing", color: Colors.expense }
-                                : { name: "Decreasing", color: Colors.dashboard.cyan }
+                                ? { name: "Better", color: Colors.dashboard.cyan }
+                                : { name: "Worse", color: Colors.expense }
                             }
                         />
                         <InsightCard
@@ -542,8 +732,9 @@ export default function HomeScreen() {
                             icon="calendar-today"
                             subtitle={`${monthlyTransactions.filter(t => t.type === 'outflow').length} expenses`}
                             theme={theme}
+                            onPress={() => router.push('/spending-info')}
                             content={
-                                <SimpleBarChart data={[20, 45, 10, 30, 15, 40]} color={Colors.dashboard.orange} />
+                                <SimpleBarChart data={spendingChartData} color={Colors.dashboard.orange} />
                             }
                         />
                     </View>
@@ -554,6 +745,7 @@ export default function HomeScreen() {
                             value={`$${(topCategory?.amount || 0).toLocaleString()}`}
                             icon="pie-chart"
                             theme={theme}
+                            onPress={() => router.push('/top-spending-info')}
                             content={
                                 <MiniDonutChart data={donutData.length > 0 ? donutData : [{ amount: 1, color: '#333' }]} size={65} strokeWidth={11} />
                             }
@@ -565,6 +757,7 @@ export default function HomeScreen() {
                             value={`+${savingsRate}%`}
                             icon="wallet"
                             theme={theme}
+                            onPress={() => router.push('/saving-rate-info')}
                             content={
                                 <SavingRateGauge percentage={savingsRate} />
                             }

@@ -66,10 +66,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     },
 
     updateTransaction: async (id, updates) => {
-        // Helper for DB update not implemented yet in db.ts, so we'll just refresh for now or implement later
-        // For now, let's assume we implement it or skip strict DB update for prototype
-        // Proper way: await db.updateTransaction(id, updates);
-        // We will just update locally to keep UI responsive, but ideally DB update
+        await db.updateTransaction(id, updates);
+        // Optimistic update below
         set((state) => ({
             transactions: state.transactions.map((t) =>
                 t.id === id ? { ...t, ...updates, updatedAt: Date.now() } : t

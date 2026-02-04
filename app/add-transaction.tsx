@@ -6,7 +6,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { format } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -21,7 +20,8 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    useColorScheme
 } from 'react-native';
 // import { MenuView, NativeActionEvent } from '@react-native-menu/menu';
 
@@ -30,8 +30,13 @@ import { Divider, Menu, Provider as PaperProvider } from 'react-native-paper';
 export default function AddTransactionScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const { addTransaction, categories, refreshData, transactions, selectedDate } = useFinanceStore();
+    const { addTransaction, updateTransaction, categories, refreshData, transactions, selectedDate } = useFinanceStore();
     console.log('[UI AddTransaction] Categories in store:', categories.length);
+
+    // Edit Mode Logic
+    const editingTransactionId = params.editingTransactionId as string | undefined;
+    const editingTransaction = editingTransactionId ? transactions.find(t => t.id === editingTransactionId) : undefined;
+    const isEditing = !!editingTransaction;
 
     // Calculate baseColor for gradient (matching Home Screen logic)
     const currentMonth = format(selectedDate, 'yyyy-MM');
@@ -52,15 +57,19 @@ export default function AddTransactionScreen() {
             ? Colors.dashboard.orange
             : '#0D93FC';
 
-    const [type, setType] = useState<TransactionType>((params.type as TransactionType) || 'outflow');
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
-    const [selectedCategoryId, setSelectedCategoryId] = useState<string>(''); // Store ID
-    const [date, setDate] = useState(new Date());
+    const [type, setType] = useState<TransactionType>(
+        (editingTransaction?.type as TransactionType) || (params.type as TransactionType) || 'outflow'
+    );
+    const [amount, setAmount] = useState(editingTransaction ? editingTransaction.amount.toString() : '');
+    const [description, setDescription] = useState(editingTransaction?.description || '');
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string>(editingTransaction?.categoryId || '');
+    const [date, setDate] = useState(editingTransaction ? new Date(editingTransaction.date) : new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
-    const [isRecurring, setIsRecurring] = useState(false);
-    const [frequency, setFrequency] = useState<RecurringFrequency>('monthly');
-    const [image, setImage] = useState<string | null>(null);
+    const [isRecurring, setIsRecurring] = useState(editingTransaction?.isRecurring || false);
+    const [frequency, setFrequency] = useState<RecurringFrequency>(
+        (editingTransaction?.recurringConfig?.frequency as RecurringFrequency) || 'monthly'
+    );
+    const [image, setImage] = useState<string | null>(editingTransaction?.receiptImage || null);
 
     // Reminder State
     const [reminder, setReminder] = useState<string>('None');
@@ -85,8 +94,8 @@ export default function AddTransactionScreen() {
 
         const selectedCat = categories.find(c => c.id === selectedCategoryId);
 
-        const newTransaction = {
-            id: Date.now().toString(),
+        const transactionData = {
+            id: isEditing ? editingTransaction!.id : Date.now().toString(),
             type,
             amount: parseFloat(amount),
             categoryId: selectedCategoryId,
@@ -101,20 +110,29 @@ export default function AddTransactionScreen() {
                 occurrences: null
             } : undefined,
             receiptImage: image,
-            createdAt: Date.now(),
+            createdAt: isEditing ? editingTransaction!.createdAt : Date.now(),
             updatedAt: Date.now(),
         };
 
-        const response = await addTransaction(newTransaction);
+        if (isEditing) {
+            await updateTransaction(transactionData.id, transactionData);
+            Alert.alert('Success', 'Transaction updated');
+        } else {
+            const response = await addTransaction(transactionData);
+            // Debug Alert for Add
+            if (!isEditing) {
+                Alert.alert(
+                    'Transaction Saved',
+                    `App marked recurring: ${isRecurring ? 'YES' : 'NO'}\n` +
+                    `Server saved recurring: ${response?.savedAsRecurring ? 'YES' : 'NO'}\n` +
+                    `Server Version: ${response?.v || 'Old/Unknown'}\n` +
+                    `Frequency: ${frequency.toUpperCase()}`
+                );
+            }
+        }
 
-        // Debug Alert
-        Alert.alert(
-            'Transaction Saved',
-            `App marked recurring: ${isRecurring ? 'YES' : 'NO'}\n` +
-            `Server saved recurring: ${response?.savedAsRecurring ? 'YES' : 'NO'}\n` +
-            `Server Version: ${response?.v || 'Old/Unknown'}\n` +
-            `Frequency: ${frequency.toUpperCase()}`
-        );
+
+
 
         router.back();
     };
@@ -132,20 +150,24 @@ export default function AddTransactionScreen() {
         }
     };
 
+    const colorScheme = useColorScheme();
+    const theme = colorScheme ?? 'light';
+    const backgroundColor = theme === 'dark' ? '#000000' : '#ffffff';
+    const textColor = theme === 'dark' ? '#ffffff' : '#000000';
+    const formBackgroundColor = theme === 'dark' ? '#1E2330' : '#F2F2F7';
+    const formTextColor = theme === 'dark' ? '#ffffff' : '#000000';
+    const placeholderColor = theme === 'dark' ? '#666' : '#999';
+
     return (
         <PaperProvider>
-            <LinearGradient
-                colors={[baseColor + '1A', '#000000']}
-                locations={[0, 0.35]}
-                style={styles.container}
-            >
-                <StatusBar barStyle="light-content" />
+            <View style={[styles.container, { backgroundColor }]}>
+                <StatusBar barStyle={theme === 'dark' ? "light-content" : "dark-content"} />
                 <Stack.Screen
                     options={{
                         headerShown: true,
                         headerTransparent: true,
-                        headerTitle: "Add Transaction",
-                        headerTintColor: '#fff',
+                        headerTitle: isEditing ? "Edit Transaction" : "Add Transaction",
+                        headerTintColor: textColor,
                         headerLeft: () => (
                             <Pressable
                                 onPress={() => router.back()}
@@ -153,27 +175,31 @@ export default function AddTransactionScreen() {
                             >
                                 <IconSymbol
                                     name="chevron-left"
-                                    color="#fff"
+                                    color={textColor}
                                     size={24}
                                 />
                             </Pressable>
                         ),
                         headerRight: () => (
-                            <View style={styles.headerRightContainer}>
-                                <Pressable
-                                    onPress={() => { /* Clear or help */ }}
-                                    style={{ padding: 8 }}
-                                >
-                                    <IconSymbol name="more-horiz" size={24} color="#fff" />
-                                </Pressable>
-                            </View>
+                            // <TouchableOpacity
+                            //     onPress={handleSave}
+                            //     style={{ padding: 8, marginRight: 8 }}
+                            // >
+                            //     <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>Save</Text>
+                            // </TouchableOpacity>
+
+                            <Pressable
+                                onPress={handleSave}
+                                style={{ padding: 8 }}
+                            >
+                                <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>Save</Text>
+                            </Pressable>
                         )
                     }}
                 />
 
                 <ScrollView contentContainerStyle={styles.content}>
 
-                    {/* Type Switcher */}
                     {/* Type Switcher */}
                     <View style={styles.segmentContainer}>
                         <SegmentedControl
@@ -184,11 +210,9 @@ export default function AddTransactionScreen() {
                                 setType(index === 0 ? 'inflow' : 'outflow');
                                 setSelectedCategoryId('');
                             }}
-                            // @ts-ignore: 'glass' is a valid value for iOS 13+ but missing in types
-                            appearance="glass"
-                            fontStyle={{ color: '#8E8E93', fontWeight: '600', fontSize: 13 }}
-                            activeFontStyle={{ color: '#fff' }}
-                            tintColor="rgba(255, 255, 255, 0.15)"
+                            appearance={theme === 'dark' ? 'dark' : 'light'}
+                            fontStyle={{ color: textColor, fontWeight: '600', fontSize: 13 }}
+                            activeFontStyle={{ color: theme === 'dark' ? '#fff' : '#000' }}
                             style={styles.segmentedControl}
                         />
                     </View>
@@ -202,7 +226,7 @@ export default function AddTransactionScreen() {
                             keyboardType="numeric"
                             value={amount}
                             onChangeText={setAmount}
-                            placeholderTextColor="#666"
+                            placeholderTextColor={placeholderColor}
                             autoFocus
                         />
                     </View>
@@ -215,33 +239,33 @@ export default function AddTransactionScreen() {
                                 key={cat.id}
                                 style={[
                                     styles.categoryChip,
+                                    { backgroundColor: formBackgroundColor, borderColor: 'transparent' },
                                     selectedCategoryId === cat.id && { backgroundColor: cat.color, borderColor: cat.color }
                                 ]}
                                 onPress={() => setSelectedCategoryId(cat.id)}
                             >
-                                <View style={[styles.categoryIcon, selectedCategoryId === cat.id && { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
-                                    {/* Using icon name directly if valid, else fallback */}
+                                <View style={[styles.categoryIcon, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }, selectedCategoryId === cat.id && { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
                                     <IconSymbol name="pie-chart" size={16} color={selectedCategoryId === cat.id ? '#fff' : cat.color} />
                                 </View>
-                                <Text style={[styles.categoryText, selectedCategoryId === cat.id && { color: '#fff' }]}>
+                                <Text style={[styles.categoryText, { color: formTextColor }, selectedCategoryId === cat.id && { color: '#fff' }]}>
                                     {cat.name}
                                 </Text>
                             </TouchableOpacity>
                         ))}
                         <TouchableOpacity
-                            style={[styles.categoryChip, styles.addCategoryChip]}
+                            style={[styles.categoryChip, styles.addCategoryChip, { borderColor: placeholderColor }]}
                             onPress={() => router.push('/add-category')}
                         >
-                            <IconSymbol name="plus" size={16} color={Colors.light.text} />
-                            <Text style={styles.categoryText}>Add</Text>
+                            <IconSymbol name="plus" size={16} color={placeholderColor} />
+                            <Text style={[styles.categoryText, { color: placeholderColor }]}>Add</Text>
                         </TouchableOpacity>
                     </ScrollView>
 
                     <Text style={styles.label}>Date</Text>
-                    <View style={[styles.formRow, { justifyContent: 'space-between', paddingVertical: 12 }]}>
+                    <View style={[styles.formRow, { backgroundColor: formBackgroundColor, justifyContent: 'space-between', paddingVertical: 12 }]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <IconSymbol name="calendar-today" size={20} color={Colors.light.gray} />
-                            <Text style={styles.formLabel}>Transaction Date</Text>
+                            <IconSymbol name="calendar-today" size={20} color={Colors[theme].gray} />
+                            <Text style={[styles.formLabel, { color: formTextColor }]}>Transaction Date</Text>
                         </View>
                         <DateTimePicker
                             value={date}
@@ -250,29 +274,30 @@ export default function AddTransactionScreen() {
                             onChange={(event, selectedDate) => {
                                 if (selectedDate) setDate(selectedDate);
                             }}
-                            accentColor="#007AFF"
+                            accentColor={Colors.light.tint}
                             style={{ width: 120 }}
+                            themeVariant={theme}
                         />
                     </View>
 
                     {/* Description */}
                     <Text style={styles.label}>Description</Text>
-                    <View style={styles.formRow}>
-                        <IconSymbol name="edit" size={20} color={Colors.light.gray} />
+                    <View style={[styles.formRow, { backgroundColor: formBackgroundColor }]}>
+                        <IconSymbol name="edit" size={20} color={Colors[theme].gray} />
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, { color: formTextColor }]}
                             placeholder="What is this for?"
-                            placeholderTextColor="#666"
+                            placeholderTextColor={placeholderColor}
                             value={description}
                             onChangeText={setDescription}
                         />
                     </View>
 
                     {/* Recurring */}
-                    <View style={[styles.formRow, { justifyContent: 'space-between', marginTop: 12 }]}>
+                    <View style={[styles.formRow, { backgroundColor: formBackgroundColor, justifyContent: 'space-between', marginTop: 12 }]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <IconSymbol name="more-horiz" size={20} color={Colors.light.gray} />
-                            <Text style={styles.formLabel}>Recurring Payment</Text>
+                            <IconSymbol name="more-horiz" size={20} color={Colors[theme].gray} />
+                            <Text style={[styles.formLabel, { color: formTextColor }]}>Recurring Payment</Text>
                         </View>
                         <Switch
                             value={isRecurring}
@@ -285,43 +310,6 @@ export default function AddTransactionScreen() {
                         <View style={{ marginTop: 12 }}>
                             <Text style={styles.label}>Frequency</Text>
                             <View style={styles.segmentContainer}>
-                                {/* Uncomment for Native Dev Build
-                            <MenuView
-                                title="Choose Frequency"
-                                onPressAction={({ nativeEvent }) => {
-                                    setFrequency(nativeEvent.event as RecurringFrequency);
-                                }}
-                                actions={[
-                                    {
-                                        id: 'weekly',
-                                        title: 'Weekly',
-                                        image: 'calendar.circle',
-                                        state: frequency === 'weekly' ? 'on' : 'off',
-                                    },
-                                    {
-                                        id: 'monthly',
-                                        title: 'Monthly',
-                                        image: 'moon.circle',
-                                        state: frequency === 'monthly' ? 'on' : 'off',
-                                    },
-                                    {
-                                        id: 'yearly',
-                                        title: 'Yearly',
-                                        image: 'globe',
-                                        state: frequency === 'yearly' ? 'on' : 'off',
-                                    },
-                                ]}
-                                shouldOpenOnLongPress={false}
-                            >
-                                <Pressable style={styles.selectorButton}>
-                                    <Text style={styles.buttonText}>
-                                        {frequency.charAt(0).toUpperCase() + frequency.slice(1)}
-                                    </Text>
-                                    <IconSymbol name="chevron-right" size={20} color={PlatformColor('systemGray')} style={{ transform: [{ rotate: '90deg' }] }} />
-                                </Pressable>
-                            </MenuView>
-                            */}
-                                {/* Fallback for Expo Go */}
                                 <SegmentedControl
                                     values={['Weekly', 'Monthly', 'Yearly']}
                                     selectedIndex={['weekly', 'monthly', 'yearly'].indexOf(frequency)}
@@ -329,11 +317,9 @@ export default function AddTransactionScreen() {
                                         const index = event.nativeEvent.selectedSegmentIndex;
                                         setFrequency((['weekly', 'monthly', 'yearly'] as const)[index]);
                                     }}
-                                    // @ts-ignore
-                                    appearance="glass"
-                                    fontStyle={{ color: '#8E8E93', fontWeight: '600', fontSize: 13 }}
-                                    activeFontStyle={{ color: '#fff' }}
-                                    tintColor="rgba(255, 255, 255, 0.15)"
+                                    appearance={theme === 'dark' ? 'dark' : 'light'}
+                                    fontStyle={{ color: textColor, fontWeight: '600', fontSize: 13 }}
+                                    activeFontStyle={{ color: theme === 'dark' ? '#fff' : '#000' }}
                                     style={styles.segmentedControl}
                                 />
                             </View>
@@ -341,10 +327,10 @@ export default function AddTransactionScreen() {
                     )}
 
                     {/* Notify Me - Reminder */}
-                    <View style={[styles.formRow, { justifyContent: 'space-between', marginTop: 12 }]}>
+                    <View style={[styles.formRow, { backgroundColor: formBackgroundColor, justifyContent: 'space-between', marginTop: 12 }]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <IconSymbol name="notifications" size={20} color={Colors.light.gray} />
-                            <Text style={styles.formLabel}>Notify Me</Text>
+                            <IconSymbol name="notifications" size={20} color={Colors[theme].gray} />
+                            <Text style={[styles.formLabel, { color: formTextColor }]}>Notify Me</Text>
                         </View>
 
                         <Menu
@@ -352,61 +338,54 @@ export default function AddTransactionScreen() {
                             onDismiss={() => setReminderMenuVisible(false)}
                             anchor={
                                 <TouchableOpacity onPress={() => setReminderMenuVisible(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Text style={{ color: '#fff', fontSize: 16, marginRight: 8 }}>{reminder}</Text>
-                                    <IconSymbol name="chevron-right" size={20} color={Colors.light.gray} />
+                                    <Text style={{ color: formTextColor, fontSize: 16, marginRight: 8 }}>{reminder}</Text>
+                                    <IconSymbol name="chevron-right" size={20} color={Colors[theme].gray} />
                                 </TouchableOpacity>
                             }
-                            contentStyle={{ backgroundColor: '#1E2330', borderRadius: 12, borderWidth: 1, borderColor: '#333' }}
+                            contentStyle={{ backgroundColor: formBackgroundColor, borderRadius: 12, borderWidth: 1, borderColor: theme === 'dark' ? '#333' : '#ddd' }}
                         >
                             <Menu.Item
                                 onPress={() => { setReminder('None'); setReminderMenuVisible(false); }}
                                 title="None"
-                                titleStyle={{ color: '#fff' }}
+                                titleStyle={{ color: formTextColor }}
                             />
-                            <Divider style={{ backgroundColor: '#333' }} />
+                            <Divider style={{ backgroundColor: theme === 'dark' ? '#333' : '#ddd' }} />
                             <Menu.Item
                                 onPress={() => { setReminder('1 Day Before'); setReminderMenuVisible(false); }}
                                 title="1 Day Before"
-                                titleStyle={{ color: '#fff' }}
+                                titleStyle={{ color: formTextColor }}
                             />
-                            <Divider style={{ backgroundColor: '#333' }} />
+                            <Divider style={{ backgroundColor: theme === 'dark' ? '#333' : '#ddd' }} />
                             <Menu.Item
                                 onPress={() => { setReminder('3 Days Before'); setReminderMenuVisible(false); }}
                                 title="3 Days Before"
-                                titleStyle={{ color: '#fff' }}
+                                titleStyle={{ color: formTextColor }}
                             />
-                            <Divider style={{ backgroundColor: '#333' }} />
+                            <Divider style={{ backgroundColor: theme === 'dark' ? '#333' : '#ddd' }} />
                             <Menu.Item
                                 onPress={() => { setReminder('7 Days Before'); setReminderMenuVisible(false); }}
                                 title="7 Days Before"
-                                titleStyle={{ color: '#fff' }}
+                                titleStyle={{ color: formTextColor }}
                             />
                         </Menu>
                     </View>
 
                     {/* Attachment */}
                     <Text style={styles.label}>Attachment</Text>
-                    <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
+                    <TouchableOpacity style={[styles.uploadBox, { backgroundColor: formBackgroundColor, borderColor: placeholderColor }]} onPress={pickImage}>
                         {image ? (
                             <Image source={{ uri: image }} style={styles.previewImage} />
                         ) : (
                             <>
-                                <IconSymbol name="camera-alt" size={24} color={Colors.light.gray} />
-                                <Text style={styles.uploadText}>Attach Receipt</Text>
+                                <IconSymbol name="camera-alt" size={24} color={placeholderColor} />
+                                <Text style={[styles.uploadText, { color: placeholderColor }]}>Attach Receipt</Text>
                             </>
                         )}
                     </TouchableOpacity>
 
                     <View style={{ height: 100 }} />
                 </ScrollView>
-
-                {/* Save Button */}
-                <View style={styles.footer}>
-                    <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                        <Text style={styles.saveBtnText}>Save Transaction</Text>
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient >
+            </View>
         </PaperProvider>
     );
 }

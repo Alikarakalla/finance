@@ -18,13 +18,12 @@ app.use((req, res, next) => {
 });
 
 // Database Connection
-// DBngin default: User 'root', No Password, Port 3306
 const db = mysql.createPool({
     host: process.env.DB_HOST || '127.0.0.1',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'finance_app_db',
-    port: 3308, // Updated based on DBngin screenshot
+    port: process.env.PORT_DB ? parseInt(process.env.PORT_DB) : 3307,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -217,6 +216,43 @@ app.post('/transactions', (req, res) => {
             savedAsRecurring: !!recValue,
             v: 2 // Server version indicator
         });
+    });
+});
+
+// Update Transaction
+app.put('/transactions/:id', (req, res) => {
+    const { id } = req.params;
+    const {
+        type, amount, categoryId, date, description, receiptImage,
+        isRecurring, recurringConfig
+    } = req.body;
+
+    // Handle recurring boolean/string logic similar to POST
+    let recValue = isRecurring;
+    if (recValue === 'true') recValue = true;
+    if (recValue === 'false') recValue = false;
+    const recNumeric = recValue ? 1 : 0;
+
+    const configValue = recurringConfig;
+    const configStr = configValue ? (typeof configValue === 'string' ? configValue : JSON.stringify(configValue)) : null;
+
+    const sql = `
+        UPDATE transactions 
+        SET type=?, amount=?, category_id=?, date=?, description=?, receipt_image=?, updated_at=?, is_recurring=?, recurring_config=?
+        WHERE id=?
+    `;
+
+    // params order matches SQL
+    const params = [
+        type, amount, categoryId, date, description, receiptImage, Date.now(), recNumeric, configStr, id
+    ];
+
+    db.query(sql, params, (err, result) => {
+        if (err) {
+            console.error('[DB Error] UPDATE failed:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ message: 'Transaction updated', id });
     });
 });
 
