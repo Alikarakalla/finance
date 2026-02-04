@@ -2,6 +2,7 @@ import { LiquidGlassCard as GlassCard } from '@/components/LiquidGlassComponents
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/Colors';
 import { useFinanceStore } from '@/store/financeStore';
+import { useCurrencyFormatter } from '@/utils/format';
 import { format, isToday, isYesterday } from 'date-fns';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +24,7 @@ import {
 export default function TransactionsScreen() {
     const router = useRouter();
     const { transactions, deleteTransaction, categories } = useFinanceStore();
+    const formatCurrency = useCurrencyFormatter();
     const [searchQuery, setSearchQuery] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'inflow' | 'outflow'>('all');
     const colorScheme = useColorScheme();
@@ -85,12 +87,6 @@ export default function TransactionsScreen() {
         return cat ? cat.color : Colors[theme].gray;
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-        }).format(amount);
-    };
 
     return (
         <View style={[styles.container, { backgroundColor: Colors[theme].background }]}>

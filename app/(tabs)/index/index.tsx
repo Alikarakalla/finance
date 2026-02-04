@@ -2,13 +2,14 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/Colors';
 import { useFinanceStore } from '@/store/financeStore';
 import { Transaction } from '@/types';
+import { useCurrencyFormatter, useDateFormatter } from '@/utils/format';
 import { format } from 'date-fns';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { HelpCircle, Repeat } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -17,10 +18,21 @@ import {
     View,
     useColorScheme
 } from 'react-native';
+import {
+    createAnimatedComponent,
+    runOnJS,
+    useAnimatedProps,
+    useAnimatedReaction,
+    useSharedValue,
+    withDelay,
+    withTiming
+} from 'react-native-reanimated';
 import Svg, { Circle, Defs, Mask, Path } from 'react-native-svg';
 // import { ICON_MAP } from '../../add-category';
 
 // --- Components ---
+
+const AnimatedCircle = createAnimatedComponent(Circle);
 
 const DashedCircularProgress = ({
     size = 220,
@@ -29,7 +41,8 @@ const DashedCircularProgress = ({
     color = Colors.dashboard.cyan,
     labelValue,
     labelSubtitle,
-    theme = 'dark'
+    theme = 'dark',
+    triggerKey
 }: {
     size?: number,
     strokeWidth?: number,
@@ -37,22 +50,13 @@ const DashedCircularProgress = ({
     color?: string,
     labelValue: string,
     labelSubtitle: string,
-    theme?: 'light' | 'dark'
+    theme?: 'light' | 'dark',
+    triggerKey?: string
 }) => {
     const radius = (size - strokeWidth) / 2;
     const innerRadius = radius - strokeWidth - 10;
     const circumference = radius * 2 * Math.PI;
     const innerCircumference = innerRadius * 2 * Math.PI;
-
-    const progressStrokeDasharray = [
-        (circumference * Math.max(0, Math.min(100, percentage))) / 100,
-        circumference
-    ];
-
-    const innerProgressStrokeDasharray = [
-        (innerCircumference * Math.max(0, Math.min(100, percentage))) / 100,
-        innerCircumference
-    ];
 
     const dotCount = 40;
     const dotPitch = innerCircumference / dotCount;
@@ -62,6 +66,47 @@ const DashedCircularProgress = ({
     const trackColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
     const textColor = Colors[theme].text;
     const subTextColor = Colors[theme].gray;
+
+    // Animation values
+    const progress = useSharedValue(0);
+
+    const triggerHaptic = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    };
+
+    useAnimatedReaction(
+        () => Math.floor(progress.value / 5),
+        (currentTick, previousTick) => {
+            if (currentTick !== previousTick && currentTick > 0) {
+                runOnJS(triggerHaptic)();
+            }
+        }
+    );
+
+    useEffect(() => {
+        progress.value = 0;
+        progress.value = withDelay(400, withTiming(percentage || 0, {
+            duration: 1200
+        }, (finished) => {
+            if (finished) {
+                runOnJS(Haptics.notificationAsync)(Haptics.NotificationFeedbackType.Success);
+            }
+        }));
+    }, [triggerKey]);
+
+    const animatedProps = useAnimatedProps(() => ({
+        strokeDasharray: [
+            (circumference * Math.max(0, Math.min(100, progress.value))) / 100,
+            circumference
+        ]
+    }));
+
+    const innerAnimatedProps = useAnimatedProps(() => ({
+        strokeDasharray: [
+            (innerCircumference * Math.max(0, Math.min(100, progress.value))) / 100,
+            innerCircumference
+        ]
+    }));
 
     return (
         <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
@@ -77,14 +122,14 @@ const DashedCircularProgress = ({
                 />
 
                 {/* Progress Ring (Outer Solid) */}
-                <Circle
+                <AnimatedCircle
                     cx={size / 2}
                     cy={size / 2}
                     r={radius}
                     stroke={color}
                     strokeWidth={strokeWidth}
                     fill="transparent"
-                    strokeDasharray={progressStrokeDasharray}
+                    animatedProps={animatedProps}
                     strokeLinecap="round"
                     strokeDashoffset={-circumference / dotCount}
                 />
@@ -105,14 +150,14 @@ const DashedCircularProgress = ({
                 {/* Inner Decorative Dot Progress (Colored Dots) */}
                 <Defs>
                     <Mask id="innerDotMask">
-                        <Circle
+                        <AnimatedCircle
                             cx={size / 2}
                             cy={size / 2}
                             r={innerRadius}
                             stroke="white"
                             strokeWidth={8}
                             fill="transparent"
-                            strokeDasharray={innerProgressStrokeDasharray}
+                            animatedProps={innerAnimatedProps}
                             strokeLinecap="round"
                             strokeDashoffset={-dotPitch}
                         />
@@ -157,6 +202,7 @@ const StatItem = ({ label, value, color, theme = 'dark' }: { label: string, valu
 const MiniDonutChart = ({ data, size = 70, strokeWidth = 10 }: { data: { amount: number, color: string, name?: string }[], size?: number, strokeWidth?: number }) => {
     const [selected, setSelected] = useState<number | null>(null);
     const timeoutRef = useRef<any>(null);
+    const formatCurrency = useCurrencyFormatter();
 
     const radius = (size - strokeWidth) / 2;
     const circumference = radius * 2 * Math.PI;
@@ -197,7 +243,7 @@ const MiniDonutChart = ({ data, size = 70, strokeWidth = 10 }: { data: { amount:
                             {data[selected].name}
                         </Text>
                         <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800', textAlign: 'center' }}>
-                            ${data[selected].amount.toLocaleString()}
+                            {formatCurrency(data[selected].amount)}
                         </Text>
                     </BlurView>
                 </View>
@@ -240,6 +286,7 @@ const MiniDonutChart = ({ data, size = 70, strokeWidth = 10 }: { data: { amount:
 const SimpleBarChart = ({ data, color }: { data: number[], color: string }) => {
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const timeoutRef = useRef<any>(null);
+    const formatCurrency = useCurrencyFormatter();
 
     const width = 130;
     const height = 40;
@@ -500,11 +547,12 @@ const InsightCard = ({
 
 const TransactionItem = ({ t, theme = 'dark', categories, onPress, isLast }: { t: Transaction, theme?: 'light' | 'dark', categories: any[], onPress: () => void, isLast: boolean }) => {
     const category = categories.find(c => c.id === t.categoryId);
-    // const IconComp = category ? (ICON_MAP[category.icon] || HelpCircle) : HelpCircle;
     const iconIsEmoji = category?.icon && category.icon.length <= 4 && !/^[a-zA-Z]+$/.test(category.icon);
 
-    // "$ 1,100.00-" format (trailing negative sign for outflow)
-    const formattedAmount = `$ ${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${t.type === 'outflow' ? '-' : ''}`;
+    const formatCurrency = useCurrencyFormatter();
+    const formatDate = useDateFormatter();
+
+    const formattedAmount = `${formatCurrency(Math.abs(t.amount))}${t.type === 'outflow' ? '-' : ''}`;
 
     return (
         <View>
@@ -529,7 +577,7 @@ const TransactionItem = ({ t, theme = 'dark', categories, onPress, isLast }: { t
                             </View>
                         )}
                     </View>
-                    <Text style={[styles.tDate, { color: Colors[theme].gray }]}>{format(new Date(t.date), 'MMM d')}</Text>
+                    <Text style={[styles.tDate, { color: Colors[theme].gray }]}>{formatDate(new Date(t.date))}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Text style={[styles.tAmount, { color: Colors[theme].text, fontSize: 16 }]}>
@@ -548,6 +596,10 @@ export default function HomeScreen() {
     const { transactions, getBalance, refreshData, selectedDate, categories } = useFinanceStore();
     const colorScheme = useColorScheme();
     const theme = 'dark'; // Force dark theme for black gradient background
+
+    // Formatters
+    const formatCurrency = useCurrencyFormatter();
+    const formatDate = useDateFormatter();
 
     React.useEffect(() => {
         refreshData();
@@ -693,17 +745,18 @@ export default function HomeScreen() {
                     <DashedCircularProgress
                         size={220}
                         percentage={availablePercentage}
-                        labelValue={`$${leftToSpend.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                        labelValue={formatCurrency(leftToSpend)}
                         labelSubtitle={`${Math.round(availablePercentage)}% Available`}
                         color={baseColor}
                         theme={theme}
+                        triggerKey={currentMonth}
                     />
                 </View>
 
                 <View style={styles.statsRow}>
-                    <StatItem label="Budget" value={`$${monthlyBudget.toLocaleString()}`} theme={theme} />
-                    <StatItem label="Spent" value={`$${monthlyOutflow.toLocaleString()}`} theme={theme} />
-                    <StatItem label="Available" value={`$${leftToSpend.toLocaleString()}`} theme={theme} />
+                    <StatItem label="Budget" value={formatCurrency(monthlyBudget)} theme={theme} />
+                    <StatItem label="Spent" value={formatCurrency(monthlyOutflow)} theme={theme} />
+                    <StatItem label="Available" value={formatCurrency(leftToSpend)} theme={theme} />
                 </View>
 
                 <Text style={[styles.sectionTitle, { color: Colors[theme].text }]}>Insights</Text>
@@ -728,7 +781,7 @@ export default function HomeScreen() {
                         <InsightCard
                             title="Spending"
                             color="#2B1A10"
-                            value={`$${monthlyOutflow.toLocaleString()}`}
+                            value={formatCurrency(monthlyOutflow)}
                             icon="calendar-today"
                             subtitle={`${monthlyTransactions.filter(t => t.type === 'outflow').length} expenses`}
                             theme={theme}
@@ -742,7 +795,7 @@ export default function HomeScreen() {
                         <InsightCard
                             title="Top Spending"
                             color="#2A1B3D"
-                            value={`$${(topCategory?.amount || 0).toLocaleString()}`}
+                            value={formatCurrency(topCategory?.amount || 0)}
                             icon="pie-chart"
                             theme={theme}
                             onPress={() => router.push('/top-spending-info')}

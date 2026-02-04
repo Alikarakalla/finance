@@ -1,6 +1,7 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/Colors';
 import { useFinanceStore } from '@/store/financeStore';
+import { useCurrencyFormatter, useDateFormatter } from '@/utils/format';
 import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -30,6 +31,9 @@ export default function TransactionDetailScreen() {
     const colorScheme = useColorScheme();
     const theme = (colorScheme ?? 'light') as 'light' | 'dark';
     const { transactions, deleteTransaction } = useFinanceStore();
+
+    const formatCurrency = useCurrencyFormatter();
+    const formatDate = useDateFormatter();
 
     const { transactionId } = useLocalSearchParams<{ transactionId: string }>();
     const transaction = transactions.find(t => t.id === transactionId);
@@ -107,7 +111,7 @@ export default function TransactionDetailScreen() {
                 {/* Hero Header */}
                 <View style={[styles.hero, { backgroundColor: transaction.type === 'inflow' ? Colors.income + '20' : Colors.expense + '20' }]}>
                     <Text style={[styles.heroAmount, { color: transaction.type === 'inflow' ? Colors.income : Colors.expense }]}>
-                        {transaction.type === 'inflow' ? '+' : '-'}${transaction.amount.toLocaleString()}
+                        {transaction.type === 'inflow' ? '+' : ''}{formatCurrency(transaction.amount)}
                     </Text>
                     <Text style={[styles.heroCategory, { color: Colors[theme].text }]}>{transaction.categoryName || 'General'}</Text>
                 </View>
@@ -117,7 +121,7 @@ export default function TransactionDetailScreen() {
                     <DetailRow
                         icon={<Calendar size={20} color={Colors[theme].gray} />}
                         label="Date"
-                        value={format(new Date(transaction.date), 'EEEE, MMMM do yyyy')}
+                        value={formatDate(transaction.date)}
                         theme={theme}
                     />
                     <DetailRow
@@ -151,7 +155,7 @@ export default function TransactionDetailScreen() {
                     </View>
                     <View style={styles.metaRow}>
                         <Clock size={16} color={Colors[theme].gray} />
-                        <Text style={[styles.metaText, { color: Colors[theme].gray }]}>Created: {format(new Date(transaction.createdAt), 'MMM d, HH:mm')}</Text>
+                        <Text style={[styles.metaText, { color: Colors[theme].gray }]}>Created: {formatDate(transaction.createdAt)}, {format(new Date(transaction.createdAt), 'HH:mm')}</Text>
                     </View>
                 </View>
 

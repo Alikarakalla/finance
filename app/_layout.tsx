@@ -10,6 +10,16 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { useFinanceStore } from '@/store/financeStore';
+import { registerForPushNotificationsAsync } from '@/utils/notifications';
+import * as Notifications from 'expo-notifications';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -55,7 +65,7 @@ export default function RootLayout() {
 
     // Check if onboarded
     // If not onboarded and not currently on onboarding screen, redirect
-    const inOnboarding = segments[0] === 'onboarding';
+    const inOnboarding = segments[0] === 'onboarding' || segments[0] === 'currency-picker';
 
     if (!hasOnboarded && !inOnboarding) {
       router.replace('/onboarding');
@@ -63,6 +73,20 @@ export default function RootLayout() {
       router.replace('/(tabs)' as any);
     }
   }, [isReady, hasOnboarded, segments]);
+
+  useEffect(() => {
+    if (isReady && hasOnboarded) {
+      registerForPushNotificationsAsync().then(token => {
+        if (token) {
+          useFinanceStore.getState().updatePushToken(token);
+        }
+      });
+      // Schedule daily reminder
+      import('@/utils/notifications').then(({ scheduleDailyReminder }) => {
+        scheduleDailyReminder();
+      });
+    }
+  }, [isReady, hasOnboarded]);
 
   if (!loaded) {
     return null;
@@ -142,6 +166,9 @@ function RootLayoutNav() {
               sheetCornerRadius: 32,
             }}
           />
+          <Stack.Screen name="auth" options={{ headerShown: false, contentStyle: { backgroundColor: '#000000' } }} />
+          <Stack.Screen name="notifications" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="currency-picker" options={{ presentation: 'card', headerShown: true, title: 'Select Currency' }} />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>

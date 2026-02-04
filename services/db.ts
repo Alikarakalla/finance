@@ -60,9 +60,10 @@ const seedCategories = async () => {
 // --- CRUD Operations ---
 
 // Categories
-export const getCategories = async (): Promise<Category[]> => {
-    console.log('[DB Service] Fetching categories from backend...');
-    const data = await apiCall('/categories');
+export const getCategories = async (userId?: string): Promise<Category[]> => {
+    console.log('[DB Service] Fetching categories from backend...', userId ? `for user ${userId}` : 'global');
+    const query = userId ? `?userId=${userId}` : '';
+    const data = await apiCall(`/categories${query}`);
     console.log('[DB Service] Categories received:', data ? data.length : 'null');
     if (data && data.length > 0) {
         console.log('[DB Service] First category:', data[0]);
@@ -70,8 +71,8 @@ export const getCategories = async (): Promise<Category[]> => {
     return data || [];
 };
 
-export const addCategory = async (cat: Category) => {
-    await apiCall('/categories', 'POST', cat);
+export const addCategory = async (cat: Category, userId?: string) => {
+    await apiCall('/categories', 'POST', { ...cat, userId });
 };
 
 export const updateCategory = async (id: string, cat: Partial<Category>) => {
@@ -83,8 +84,9 @@ export const deleteCategory = async (id: string) => {
 };
 
 // Transactions
-export const getTransactions = async (): Promise<Transaction[]> => {
-    const data = await apiCall('/transactions');
+export const getTransactions = async (userId?: string): Promise<Transaction[]> => {
+    const query = userId ? `?userId=${userId}` : '';
+    const data = await apiCall(`/transactions${query}`);
     if (!data) return [];
 
     // Ensure numeric types are actually numbers (MySQL returns strings for DECIMAL)
@@ -99,8 +101,8 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     return formatted;
 };
 
-export const addTransaction = async (t: Transaction) => {
-    return await apiCall('/transactions', 'POST', t);
+export const addTransaction = async (t: Transaction, userId?: string) => {
+    return await apiCall('/transactions', 'POST', { ...t, userId });
 };
 
 export const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
@@ -109,4 +111,31 @@ export const updateTransaction = async (id: string, updates: Partial<Transaction
 
 export const deleteTransaction = async (id: string) => {
     return await apiCall(`/transactions/${id}`, 'DELETE');
+};
+
+// --- Auth ---
+
+export const signup = async (userData: any) => {
+    return await apiCall('/signup', 'POST', userData);
+};
+
+export const login = async (credentials: any) => {
+    return await apiCall('/login', 'POST', credentials);
+};
+
+export const googleLogin = async (idToken: string) => {
+    return await apiCall('/auth/google', 'POST', { idToken });
+};
+
+export const appleLogin = async (appleData: any) => {
+    return await apiCall('/auth/apple', 'POST', appleData);
+};
+
+// --- Notifications ---
+export const updatePushToken = async (userId: string, token: string) => {
+    return await apiCall('/users/push-token', 'POST', { userId, token });
+};
+
+export const updateUserPreferences = async (userId: string, preferences: { currency?: string, dateFormat?: string, numberFormat?: string, isOnboarded?: boolean }) => {
+    return await apiCall(`/users/${userId}/preferences`, 'PUT', preferences);
 };

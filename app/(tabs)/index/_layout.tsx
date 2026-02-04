@@ -130,7 +130,23 @@ const styles = StyleSheet.create({
             }
         })
     },
+    headerIconButton: {
+        padding: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     addButton: {
         padding: 8,
+    },
+    badge: {
+        position: 'absolute',
+        top: 2,
+        right: 2,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#0D93FC',
+        borderWidth: 1.5,
+        borderColor: '#000',
     }
 });

@@ -19,6 +19,7 @@ export interface Transaction {
     tags: string[];
     isRecurring: boolean;
     recurringConfig?: RecurringConfig;
+    reminderDays?: number | null;
     receiptImage: string | null;
     createdAt: number;
     updatedAt: number;
@@ -39,4 +40,14 @@ export interface Budget {
     month: string; // "2025-01"
     totalBudget: number;
     categoryBudgets: { [categoryId: string]: number };
+}
+
+export interface Notification {
+    id: string;
+    userId: string;
+    title: string;
+    message: string;
+    type: 'alert' | 'info' | 'recurring' | 'system';
+    is_read: boolean;
+    created_at: number;
 }

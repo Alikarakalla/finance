@@ -53,6 +53,19 @@ export function IconSymbol({
             'minus': 'minus',
             'trending-up': 'chart.line.uptrend.xyaxis',
             'trending-down': 'chart.line.downtrend.xyaxis',
+            'logout': 'rectangle.portrait.and.arrow.right',
+            'person-add': 'person.crop.circle.badge.plus',
+            'bell': 'bell',
+            'bell.fill': 'bell.fill',
+            'info.circle.fill': 'info.circle.fill',
+            'arrow.clockwise.circle.fill': 'arrow.clockwise.circle.fill',
+            'exclamationmark.triangle.fill': 'exclamationmark.triangle.fill',
+            'check.all': 'checkmark.circle.fill',
+            'globe': 'globe',
+            'swap-vertical': 'arrow.up.arrow.down',
+            'cart': 'cart.fill',
+            'envelope': 'envelope.fill',
+            'lock.fill': 'lock.fill',
         };
         const symbol = iosIconMap[name] || 'questionmark';
         return <SymbolView name={symbol} size={size} tintColor={color as any} style={style as any} weight={weight} />;
@@ -72,6 +85,7 @@ export function IconSymbol({
         'list': 'list',
         'camera-alt': 'camera-alt',
         'calendar-today': 'calendar-today',
+        'calendar': 'calendar-today',
         'person': 'person',
         'delete': 'delete',
         'edit': 'edit',
@@ -86,6 +100,19 @@ export function IconSymbol({
         'minus': 'remove',
         'trending-up': 'trending-up',
         'trending-down': 'trending-down',
+        'logout': 'logout',
+        'person-add': 'person-add',
+        'bell': 'notifications',
+        'bell.fill': 'notifications',
+        'info.circle.fill': 'info',
+        'arrow.clockwise.circle.fill': 'autorenew',
+        'exclamationmark.triangle.fill': 'warning',
+        'check.all': 'done-all',
+        'globe': 'public',
+        'swap-vertical': 'swap-vert',
+        'cart': 'shopping-cart',
+        'envelope': 'email',
+        'lock.fill': 'lock',
     };
 
     const materialIconName = materialIconMap[name] || 'help-outline';
@@ -107,6 +134,7 @@ export type IconSymbolName =
     | 'list'
     | 'camera-alt'
     | 'calendar-today'
+    | 'calendar'
     | 'person'
     | 'delete'
     | 'edit'
@@ -120,4 +148,17 @@ export type IconSymbolName =
     | 'notifications'
     | 'minus'
     | 'trending-up'
-    | 'trending-down';
+    | 'trending-down'
+    | 'logout'
+    | 'person-add'
+    | 'bell'
+    | 'bell.fill'
+    | 'info.circle.fill'
+    | 'arrow.clockwise.circle.fill'
+    | 'exclamationmark.triangle.fill'
+    | 'check.all'
+    | 'globe'
+    | 'swap-vertical'
+    | 'cart'
+    | 'envelope'
+    | 'lock.fill';

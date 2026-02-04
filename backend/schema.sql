@@ -2,6 +2,21 @@
 CREATE DATABASE IF NOT EXISTS finance_app_db;
 USE finance_app_db;
 
+-- 1.1 Create Users Table
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    profile_image TEXT,
+    push_token VARCHAR(255),
+    currency VARCHAR(10) DEFAULT 'USD',
+    date_format VARCHAR(20) DEFAULT 'dd/MM/yyyy',
+    number_format VARCHAR(20) DEFAULT '1,234.56',
+    is_onboarded BOOLEAN DEFAULT FALSE,
+    created_at BIGINT
+);
+
 -- 2. Create Categories Table
 CREATE TABLE IF NOT EXISTS categories (
     id VARCHAR(255) PRIMARY KEY,
@@ -10,7 +25,9 @@ CREATE TABLE IF NOT EXISTS categories (
     icon VARCHAR(50) NOT NULL,
     color VARCHAR(50) NOT NULL,
     budget DECIMAL(10, 2),
-    isDefault BOOLEAN DEFAULT FALSE
+    isDefault BOOLEAN DEFAULT FALSE,
+    user_id VARCHAR(255),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- 3. Create Transactions Table
@@ -26,7 +43,9 @@ CREATE TABLE IF NOT EXISTS transactions (
     recurring_config JSON DEFAULT NULL,
     created_at BIGINT,
     updated_at BIGINT,
-    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+    user_id VARCHAR(255) NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- 4. Seed Default Categories

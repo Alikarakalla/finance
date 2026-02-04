@@ -1,5 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/Colors';
+import { CURRENCIES } from '@/constants/Preferences';
 import { useFinanceStore } from '@/store/financeStore';
 import { RecurringFrequency, TransactionType } from '@/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -30,7 +31,7 @@ import { Divider, Menu, Provider as PaperProvider } from 'react-native-paper';
 export default function AddTransactionScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const { addTransaction, updateTransaction, categories, refreshData, transactions, selectedDate } = useFinanceStore();
+    const { addTransaction, updateTransaction, categories, refreshData, transactions, selectedDate, currency } = useFinanceStore();
     console.log('[UI AddTransaction] Categories in store:', categories.length);
 
     // Edit Mode Logic
@@ -71,8 +72,24 @@ export default function AddTransactionScreen() {
     );
     const [image, setImage] = useState<string | null>(editingTransaction?.receiptImage || null);
 
+    // Reminder Map
+    const reminderMap: Record<number, string> = {
+        0: 'None',
+        1: '1 Day Before',
+        3: '3 Days Before',
+        7: '7 Days Before'
+    };
+    const reminderReverseMap: Record<string, number> = {
+        'None': 0,
+        '1 Day Before': 1,
+        '3 Days Before': 3,
+        '7 Days Before': 7
+    };
+
     // Reminder State
-    const [reminder, setReminder] = useState<string>('None');
+    const [reminder, setReminder] = useState<string>(
+        editingTransaction?.reminderDays ? reminderMap[editingTransaction.reminderDays] || 'None' : 'None'
+    );
     const [reminderMenuVisible, setReminderMenuVisible] = useState(false);
 
     useEffect(() => {
@@ -109,6 +126,7 @@ export default function AddTransactionScreen() {
                 endDate: null,
                 occurrences: null
             } : undefined,
+            reminderDays: reminderReverseMap[reminder] || null,
             receiptImage: image,
             createdAt: isEditing ? editingTransaction!.createdAt : Date.now(),
             updatedAt: Date.now(),
@@ -219,7 +237,9 @@ export default function AddTransactionScreen() {
 
                     {/* Amount Input */}
                     <View style={styles.amountContainer}>
-                        <Text style={[styles.currencySymbol, { color: type === 'inflow' ? Colors.income : Colors.expense }]}>$</Text>
+                        <Text style={[styles.currencySymbol, { color: type === 'inflow' ? Colors.income : Colors.expense }]}>
+                            {CURRENCIES.find(c => c.code === currency)?.symbol || '$'}
+                        </Text>
                         <TextInput
                             style={[styles.amountInput, { color: type === 'inflow' ? Colors.income : Colors.expense }]}
                             placeholder="0.00"
